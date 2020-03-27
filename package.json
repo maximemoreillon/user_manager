@@ -1,0 +1,22 @@
+{
+  "name": "user_manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "secrets.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@moreillon/authorization_middleware": "^0.2.1",
+    "axios": "^0.19.2",
+    "bcrypt": "^4.0.1",
+    "connect-history-api-fallback": "^1.6.0",
+    "cookies": "^0.8.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "neo4j-driver": "^4.0.2"
+  }
+}

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-manager
+  template:
+    metadata:
+      labels:
+        app: user-manager
+    spec:
+      containers:
+      - name: user-manager
+        image: 192.168.1.2:5000/user-manager
+        ports:
+        - containerPort: 7045
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: user-manager
+  name: user-manager
+spec:
+  ports:
+  - port: 7045
+    nodePort: 30045
+  selector:
+    app: user-manager
+  type: LoadBalancer
