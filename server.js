@@ -7,8 +7,8 @@ const bodyParser = require('body-parser');
 const cors = require('cors')
 const history = require('connect-history-api-fallback');
 const bcrypt = require('bcrypt');
-const authorization_middleware = require('@moreillon/authorization_middleware')
 const neo4j = require('neo4j-driver');
+const authorization_middleware = require('@moreillon/authorization_middleware')
 
 // custom modules
 const secrets = require('./secrets');
@@ -22,7 +22,8 @@ const driver = neo4j.driver(
 const app_port = 7045;
 const saltRounds = 10;
 
-authorization_middleware.secret = secrets.jwt_secret
+//authorization_middleware.secret = secrets.jwt_secret
+authorization_middleware.authentication_api_url = secrets.authentication_api_url 
 
 
 // Express configuration
