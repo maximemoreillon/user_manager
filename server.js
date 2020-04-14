@@ -17,7 +17,6 @@ const driver = neo4j.driver(
 // Config
 const app_port = 7045;
 
-//authorization_middleware.secret = secrets.jwt_secret
 authorization_middleware.authentication_api_url = secrets.authentication_api_url
 
 
@@ -27,11 +26,43 @@ app.use(bodyParser.json())
 app.use(cors())
 app.use(authorization_middleware.middleware)
 
+app.get('/all_users', (req, res) => {
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    RETURN user
+    `, {})
+  .then(result => {
+    res.send(result.records)
+  })
+  .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
+  .finally(() => session.close())
+})
+
+app.get('/user', (req, res) => {
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+    RETURN user
+    `, {
+    user_id: req.query.user_id
+  })
+  .then(result => {
+    res.send(result.records[0].get('user'))
+  })
+  .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
+  .finally(() => session.close())
+})
+
 app.post('/create_user', (req, res) => {
 
-  // Input Check
+  // Input sanitation
   if(!('user' in req.body)) return res.status(400).send(`User missing from body`)
   if(!('properties' in req.body.user)) return res.status(400).send(`User properties missing from user`)
+
   if(!('password_plain' in req.body.user.properties && 'username' in req.body.user.properties)) {
     return res.status(400).send(`Username or password missing`)
   }
@@ -60,15 +91,13 @@ app.post('/create_user', (req, res) => {
       user: req.body.user
     })
     .then(result => {
-      session.close()
       res.send(result.records[0].get('user'))
     })
     .catch(error => { res.status(500).send(`Error creating user: ${error}`) })
-  });
-
+    .finally(() => session.close())
+  })
 
 })
-
 
 app.post('/delete_user', (req, res) => {
   var session = driver.session()
@@ -86,46 +115,57 @@ app.post('/delete_user', (req, res) => {
     user_id: req.body.user_id
   })
   .then(result => {
-    session.close()
     if(result.records.length === 0 ) return res.status(400).send(`User deletion failed`)
     res.send("User deleted successfully")
   })
   .catch(error => { res.status(500).send(`Error deleting user: ${error}`) })
+  .finally(() => session.close())
 })
 
-app.post('/get_user_list', (req, res) => {
+
+
+
+app.post('/change_display_name', (req, res) => {
+  // Todo: allow admins to change display names
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
+    WHERE id(user) = toInt({current_user_id})
+    SET user.display_name={display_name}
     RETURN user
     `, {
-    user: req.body.user
+    current_user_id: res.locals.user.identity.low,
+    display_name: req.body.display_name,
   })
   .then(result => {
-    session.close()
-    res.send(result.records)
+    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
+    res.send(user)
   })
-  .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
+  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
+  .finally(() => session.close())
 })
 
-app.post('/get_user', (req, res) => {
+app.post('/change_avatar_src', (req, res) => {
+  // Todo: allow admins to change display names
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    WHERE id(user) = toInt({current_user_id})
+    SET user.avatar_src={avatar_src}
     RETURN user
     `, {
-    user_id: req.body.user_id
+    current_user_id: res.locals.user.identity.low,
+    avatar_src: req.body.avatar_src,
   })
   .then(result => {
-    session.close()
-    res.send(result.records[0].get('user'))
+    if(result.records.length === 0 ) return res.status(400).send(`Setting avatar failed`)
+    res.send(user)
   })
-  .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
+  .catch(error => { res.status(500).send(`Error changing avatar for user: ${error}`) })
+  .finally(() => session.close())
 })
-
 
 // Start server
 app.listen(app_port, () => {
