@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors')
 const neo4j = require('neo4j-driver');
 const authorization_middleware = require('@moreillon/authorization_middleware')
+const bcrypt = require('bcrypt')
 
 // custom modules
 const secrets = require('./secrets');
