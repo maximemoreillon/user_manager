@@ -14,9 +14,10 @@ spec:
     spec:
       containers:
       - name: user-manager
-        image: 192.168.1.2:5000/user-manager
+        image: ${CONTAINER_REGISTRY}/user-manager
+        imagePullPolicy: Always # Ensures that k8s pulls a new image on restart
         ports:
-        - containerPort: 7045
+        - containerPort: 80
 ---
 apiVersion: v1
 kind: Service
@@ -26,8 +27,8 @@ metadata:
   name: user-manager
 spec:
   ports:
-  - port: 7045
+  - port: 80
     nodePort: 30045
   selector:
     app: user-manager
-  type: LoadBalancer
+  type: NodePort

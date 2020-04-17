@@ -4,21 +4,27 @@ stages:
 
 variables:
   APPLICATION_NAME: user-manager
-  DOCKER_IMAGE: 192.168.1.2:5000/${APPLICATION_NAME}
-
+  DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
 
 containerization:
   stage: containerization
   script:
-    - cp ${SECRETS} ./secrets.js
-    - docker build -t ${DOCKER_IMAGE} .
+    - cp ${ENV} ./.env
+    - >
+      docker build
+      --build-arg HTTP_PROXY=$HTTP_PROXY
+      --build-arg HTTPS_PROXY=$HTTPS_PROXY
+      -t ${DOCKER_IMAGE}
+      .
     - docker push ${DOCKER_IMAGE}
     - docker image rm ${DOCKER_IMAGE}
 
 deployment:
   stage: deploy
   script:
-    - kubectl apply -f deployment.yml
+    - envsubst < deployment.yml | kubectl apply -f -
     - kubectl rollout restart deployment/${APPLICATION_NAME}
   environment:
     name: production
+    kubernetes:
+      namespace: ${KUBERNETES_NAMESPACE}
