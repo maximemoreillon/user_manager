@@ -3,28 +3,33 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors')
 const neo4j = require('neo4j-driver');
-const authorization_middleware = require('@moreillon/authorization_middleware')
 const bcrypt = require('bcrypt')
+const dotenv = require('dotenv');
+const authentication_middleware = require('@moreillon/authentication_middleware')
 
-// custom modules
-const secrets = require('./secrets');
+dotenv.config();
+
 
 const driver = neo4j.driver(
-  secrets.neo4j.url,
-  neo4j.auth.basic(secrets.neo4j.username, secrets.neo4j.password)
+  process.env.NEO4J_URL,
+  neo4j.auth.basic(
+    process.env.NEO4J_USERNAME,
+    process.env.NEO4J_PASSWORD
+  )
 )
 
 // Config
-const app_port = 7045;
+var app_port = 80
+if(process.env.APP_PORT) app_port=process.env.APP_PORT
 
-authorization_middleware.authentication_api_url = secrets.authentication_api_url
+authentication_middleware.authentication_api_url = `${process.env.AUTHENTIATION_API_URL}/decode_jwt`
 
 
 // Express configuration
 const app = express()
 app.use(bodyParser.json())
 app.use(cors())
-app.use(authorization_middleware.middleware)
+app.use(authentication_middleware.middleware)
 
 app.get('/all_users', (req, res) => {
   var session = driver.session()
