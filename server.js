@@ -24,12 +24,15 @@ if(process.env.APP_PORT) app_port=process.env.APP_PORT
 
 authentication_middleware.authentication_api_url = `${process.env.AUTHENTIATION_API_URL}/decode_jwt`
 
-
 // Express configuration
 const app = express()
 app.use(bodyParser.json())
 app.use(cors())
 app.use(authentication_middleware.middleware)
+
+app.get('/', (req, res) => {
+  res.send(`User management API, Maxime MOREILLON`)
+})
 
 app.get('/all_users', (req, res) => {
   var session = driver.session()
