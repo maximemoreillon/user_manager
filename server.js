@@ -9,7 +9,6 @@ const authentication_middleware = require('@moreillon/authentication_middleware'
 
 dotenv.config();
 
-
 const driver = neo4j.driver(
   process.env.NEO4J_URL,
   neo4j.auth.basic(
