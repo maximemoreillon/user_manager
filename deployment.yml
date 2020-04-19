@@ -22,13 +22,31 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    run: user-manager
   name: user-manager
 spec:
   ports:
   - port: 80
-    nodePort: 30045
   selector:
     app: user-manager
-  type: NodePort
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ${APPLICATION_NAME} # Name of the ingress, named after the application
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod" # This is necessary, no idea why
+spec:
+  tls:
+  - hosts:
+    - ${CERTIFICATE_DOMAIN}
+    secretName: ${APPLICATION_NAME} # Name of the secret, i.e. the certificates
+  rules:
+  - host: ${CERTIFICATE_DOMAIN}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: ${APPLICATION_NAME} # Name of the service, named after the app
+          servicePort: 80

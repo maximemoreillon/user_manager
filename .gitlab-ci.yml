@@ -5,6 +5,7 @@ stages:
 variables:
   APPLICATION_NAME: user-manager
   DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
+  CERTIFICATE_DOMAIN: api.users.maximemoreillon.com
 
 containerization:
   stage: containerization
