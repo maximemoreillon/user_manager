@@ -30,7 +30,10 @@ app.use(cors())
 app.use(authentication_middleware.middleware)
 
 app.get('/', (req, res) => {
-  res.send(`User management API, Maxime MOREILLON`)
+  res.send(`
+    User management API, Maxime MOREILLON <br>
+    ${process.env.NEO4J_URL}
+    `)
 })
 
 app.get('/all_users', (req, res) => {
