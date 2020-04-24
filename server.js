@@ -5,7 +5,7 @@ const cors = require('cors')
 const neo4j = require('neo4j-driver');
 const bcrypt = require('bcrypt')
 const dotenv = require('dotenv');
-const authentication_middleware = require('@moreillon/authentication_middleware')
+const auth = require('@moreillon/authentication_middleware')
 
 dotenv.config();
 
@@ -21,19 +21,14 @@ const driver = neo4j.driver(
 var app_port = 80
 if(process.env.APP_PORT) app_port=process.env.APP_PORT
 
-authentication_middleware.authentication_api_url = `${process.env.AUTHENTIATION_API_URL}/decode_jwt`
-
 // Express configuration
 const app = express()
 app.use(bodyParser.json())
 app.use(cors())
-app.use(authentication_middleware.middleware)
+app.use(auth.authenticate)
 
 app.get('/', (req, res) => {
-  res.send(`
-    User management API, Maxime MOREILLON <br>
-    ${process.env.NEO4J_URL}
-    `)
+  res.send(`User management API, Maxime MOREILLON`)
 })
 
 app.get('/all_users', (req, res) => {
