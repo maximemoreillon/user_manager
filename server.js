@@ -1,10 +1,11 @@
 // modules
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require('express')
+const bodyParser = require('body-parser')
 const cors = require('cors')
-const neo4j = require('neo4j-driver');
+const neo4j = require('neo4j-driver')
 const bcrypt = require('bcrypt')
-const dotenv = require('dotenv');
+const dotenv = require('dotenv')
+
 const auth = require('@moreillon/authentication_middleware')
 
 dotenv.config();
@@ -128,8 +129,6 @@ app.post('/delete_user', (req, res) => {
 })
 
 
-
-
 app.post('/change_display_name', (req, res) => {
   // Todo: allow admins to change display names
   var session = driver.session()
@@ -149,6 +148,81 @@ app.post('/change_display_name', (req, res) => {
   })
   .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
   .finally(() => session.close())
+})
+
+app.post('/update_last_name', (req, res) => {
+  // Todo: allow admins to change display names
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({current_user_id})
+    SET user.last_name={last_name}
+    RETURN user
+    `, {
+    current_user_id: res.locals.user.identity.low,
+    last_name: req.body.last_name,
+  })
+  .then(result => {
+    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
+    res.send(user)
+  })
+  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
+  .finally(() => session.close())
+})
+
+app.post('/update_first_name', (req, res) => {
+  // Todo: allow admins to change display names
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({current_user_id})
+    SET user.first_name={first_name}
+    RETURN user
+    `, {
+    current_user_id: res.locals.user.identity.low,
+    first_name: req.body.first_name,
+  })
+  .then(result => {
+    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
+    res.send(user)
+  })
+  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
+  .finally(() => session.close())
+})
+
+app.post('/update_password', auth.authenticate, (req, res) => {
+
+  // Input sanitation
+  if(!('new_password' in req.body)) {
+    return res.status(400).send(`Password missing from body`)
+  }
+
+  // Hash the provided password
+  bcrypt.hash(req.body.new_password, 10, (err, hash) => {
+    if(err) return res.status(500).send(`Error hashing password: ${err}`)
+
+    const session = driver.session();
+    session
+    .run(`
+      // Find the user using ID
+      MATCH (user:User)
+      WHERE id(user) = toInt({user_id})
+
+      // Set the new password
+      SET user.password_hashed={new_password_hashed}
+
+      // Return user once done
+      RETURN user
+      `, {
+        user_id: res.locals.user.identity.low,
+        new_password_hashed: hash
+      })
+      .then(result => { res.send(result.records) })
+      .catch(error => res.status(400).send(`Error accessing DB: ${error}`))
+      .finally( () => session.close())
+  })
 })
 
 app.post('/change_avatar_src', (req, res) => {
