@@ -22,6 +22,50 @@ const driver = neo4j.driver(
 var app_port = 80
 if(process.env.APP_PORT) app_port=process.env.APP_PORT
 
+
+function self_only_unless_admin(req, res){
+  let current_user_id = res.locals.user.identity.low
+  let current_user_is_admin = !!res.locals.user.properties.isAdmin
+
+  let user_id = undefined
+
+  // check if user_id provided in the request
+  if(('user_id' in req.body)) user_id = req.body.user_id
+  else if(('user_id' in req.query)) user_id = req.query.user_id
+
+  if(user_id) {
+    if(user_id !== current_user_id) {
+      if(current_user_is_admin) return user_id
+      else throw 'Unauthorized to modify another user'
+    }
+    // If user_id is that of self, the allow
+    else return user_id
+  }
+  // If user_id was not specified, just return the current user id
+  else return current_user_id
+
+}
+
+function admin_only_and_not_oneself(req, res){
+
+  let current_user_id = res.locals.user.identity.low
+
+  if(!res.locals.user.properties.isAdmin) throw 'Only administrators can perform this operation'
+
+  let user_id = undefined
+
+  // check if user_id provided in the request
+  if(('user_id' in req.body)) user_id = req.body.user_id
+  else if(('user_id' in req.query)) user_id = req.query.user_id
+
+  if(user_id) {
+    if(user_id !== current_user_id) return user_id
+    else throw 'Cannot perform operation on oneself'
+  }
+  else throw 'User ID not specified'
+
+}
+
 // Express configuration
 const app = express()
 app.use(bodyParser.json())
@@ -47,6 +91,12 @@ app.get('/all_users', (req, res) => {
 })
 
 app.get('/user', (req, res) => {
+
+  let user_id = undefined
+  if(('user_id' in req.query)) user_id = req.query.user_id
+  else user_id = res.locals.user.identity.low
+
+
   var session = driver.session()
   session
   .run(`
@@ -54,24 +104,27 @@ app.get('/user', (req, res) => {
     WHERE id(user) = toInt({user_id})
     RETURN user
     `, {
-    user_id: req.query.user_id
+    user_id: user_id
   })
   .then(result => {
     res.send(result.records[0].get('user'))
   })
-  .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error getting users: ${error}`)
+  })
   .finally(() => session.close())
 })
+
+
 
 app.post('/create_user', (req, res) => {
 
   // Input sanitation
   if(!('user' in req.body)) return res.status(400).send(`User missing from body`)
   if(!('properties' in req.body.user)) return res.status(400).send(`User properties missing from user`)
-
-  if(!('password_plain' in req.body.user.properties && 'username' in req.body.user.properties)) {
-    return res.status(400).send(`Username or password missing`)
-  }
+  if(!('password_plain' in req.body.user.properties)) return res.status(400).send(`Missing password`)
+  if(!('username' in req.body.user.properties)) return res.status(400).send(`Username or password missing`)
 
   bcrypt.hash(req.body.user.properties.password_plain, 10, (err, hash) => {
     if(err) return res.status(500).send(`Error hashing password: ${err}`)
@@ -106,6 +159,7 @@ app.post('/create_user', (req, res) => {
 })
 
 app.post('/delete_user', (req, res) => {
+  // Todo: make this a DELETE request
   var session = driver.session()
   session
   .run(`
@@ -129,22 +183,23 @@ app.post('/delete_user', (req, res) => {
 })
 
 
-app.post('/change_display_name', (req, res) => {
+app.post('/update_display_name', (req, res) => {
   // Todo: allow admins to change display names
+
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({current_user_id})
+    WHERE id(user) = toInt({user_id})
     SET user.display_name={display_name}
     RETURN user
     `, {
-    current_user_id: res.locals.user.identity.low,
+    user_id: self_only_unless_admin(req, res),
     display_name: req.body.display_name,
   })
   .then(result => {
     if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(user)
+    res.send(result.records[0].get('user'))
   })
   .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
   .finally(() => session.close())
@@ -156,16 +211,16 @@ app.post('/update_last_name', (req, res) => {
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({current_user_id})
+    WHERE id(user) = toInt({user_id})
     SET user.last_name={last_name}
     RETURN user
     `, {
-    current_user_id: res.locals.user.identity.low,
+    user_id: self_only_unless_admin(req, res),
     last_name: req.body.last_name,
   })
   .then(result => {
     if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(user)
+    res.send(result.records[0].get('user'))
   })
   .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
   .finally(() => session.close())
@@ -177,16 +232,16 @@ app.post('/update_first_name', (req, res) => {
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({current_user_id})
+    WHERE id(user) = toInt({user_id})
     SET user.first_name={first_name}
     RETURN user
     `, {
-    current_user_id: res.locals.user.identity.low,
+    user_id: self_only_unless_admin(req, res),
     first_name: req.body.first_name,
   })
   .then(result => {
     if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(user)
+    res.send(result.records[0].get('user'))
   })
   .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
   .finally(() => session.close())
@@ -195,9 +250,7 @@ app.post('/update_first_name', (req, res) => {
 app.post('/update_password', auth.authenticate, (req, res) => {
 
   // Input sanitation
-  if(!('new_password' in req.body)) {
-    return res.status(400).send(`Password missing from body`)
-  }
+  if(!('new_password' in req.body)) return res.status(400).send(`Password missing from body`)
 
   // Hash the provided password
   bcrypt.hash(req.body.new_password, 10, (err, hash) => {
@@ -216,7 +269,7 @@ app.post('/update_password', auth.authenticate, (req, res) => {
       // Return user once done
       RETURN user
       `, {
-        user_id: res.locals.user.identity.low,
+        user_id: self_only_unless_admin(req, res),
         new_password_hashed: hash
       })
       .then(result => { res.send(result.records) })
@@ -225,24 +278,46 @@ app.post('/update_password', auth.authenticate, (req, res) => {
   })
 })
 
-app.post('/change_avatar_src', (req, res) => {
+app.post('/update_avatar', (req, res) => {
   // Todo: allow admins to change display names
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({current_user_id})
+    WHERE id(user) = toInt({user_id})
     SET user.avatar_src={avatar_src}
     RETURN user
     `, {
-    current_user_id: res.locals.user.identity.low,
+    user_id: self_only_unless_admin(req, res),
     avatar_src: req.body.avatar_src,
   })
   .then(result => {
     if(result.records.length === 0 ) return res.status(400).send(`Setting avatar failed`)
-    res.send(user)
+    res.send(result.records[0].get('user'))
   })
   .catch(error => { res.status(500).send(`Error changing avatar for user: ${error}`) })
+  .finally(() => session.close())
+})
+
+app.post('/update_administrator_rights', (req, res) => {
+  // Todo: allow admins to change display names
+  // Todo: admin only!
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+    SET user.isAdmin={isAdmin}
+    RETURN user
+    `, {
+    user_id: admin_only_and_not_oneself(req, res),
+    isAdmin: req.body.isAdmin,
+  })
+  .then(result => {
+    if(result.records.length === 0 ) return res.status(400).send(`Setting administrator rights failed`)
+    res.send(result.records[0].get('user'))
+  })
+  .catch(error => { res.status(500).send(`Error updating administrator rights for user: ${error}`) })
   .finally(() => session.close())
 })
 

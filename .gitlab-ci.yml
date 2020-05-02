@@ -16,7 +16,9 @@ containerization:
       then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
       else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
       fi
+    # Import environment variables from GitLab
     - cp ${ENV} ./.env
+    # Build and push container
     - >
       docker build
       --build-arg HTTP_PROXY=$HTTP_PROXY
