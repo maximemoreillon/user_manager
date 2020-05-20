@@ -18,7 +18,7 @@ const driver = neo4j.driver(
   )
 )
 
-// Config
+// Port configuration
 var app_port = 80
 if(process.env.APP_PORT) app_port=process.env.APP_PORT
 
