@@ -158,6 +158,30 @@ app.post('/create_user', (req, res) => {
 
 })
 
+app.delete('/user', (req, res) => {
+  // Todo: make this a DELETE request
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+
+    // prevent user moreillon from being deleted
+    WHERE id(user) = toInt({user_id}) AND NOT user.username = 'moreillon'
+
+    // Delete
+    DETACH DELETE user
+    RETURN 'success'
+    `, {
+    user_id: req.query.user_id
+  })
+  .then(result => {
+    if(result.records.length === 0 ) return res.status(400).send(`User deletion failed`)
+    res.send("User deleted successfully")
+  })
+  .catch(error => { res.status(500).send(`Error deleting user: ${error}`) })
+  .finally(() => session.close())
+})
+
 app.post('/delete_user', (req, res) => {
   // Todo: make this a DELETE request
   var session = driver.session()
@@ -278,8 +302,7 @@ app.post('/update_password', auth.authenticate, (req, res) => {
   })
 })
 
-app.post('/update_avatar', (req, res) => {
-  // Todo: allow admins to change display names
+app.put('/avatar', (req, res) => {
   var session = driver.session()
   session
   .run(`
@@ -298,6 +321,7 @@ app.post('/update_avatar', (req, res) => {
   .catch(error => { res.status(500).send(`Error changing avatar for user: ${error}`) })
   .finally(() => session.close())
 })
+
 
 app.post('/update_administrator_rights', (req, res) => {
   // Todo: allow admins to change display names
