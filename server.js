@@ -73,7 +73,10 @@ app.use(cors())
 app.use(auth.authenticate)
 
 app.get('/', (req, res) => {
-  res.send(`User management API, Maxime MOREILLON`)
+  res.send(
+    `User management API, Maxime MOREILLON<br>
+    NEO4J URL: ${process.env.NEO4J_URL}
+    `)
 })
 
 app.get('/all_users', (req, res) => {
