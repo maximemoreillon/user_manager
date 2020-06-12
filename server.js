@@ -70,7 +70,7 @@ function admin_only_and_not_oneself(req, res){
 const app = express()
 app.use(bodyParser.json())
 app.use(cors())
-//app.use(auth.authenticate)
+app.use(auth.authenticate)
 
 app.get('/', (req, res) => {
   res.send(
