@@ -119,9 +119,7 @@ app.get('/user', (req, res) => {
   .finally(() => session.close())
 })
 
-
-
-app.post('/create_user', (req, res) => {
+app.post('/user', (req, res) => {
 
   // Input sanitation
   if(!('user' in req.body)) return res.status(400).send(`User missing from body`)
@@ -162,7 +160,6 @@ app.post('/create_user', (req, res) => {
 })
 
 app.delete('/user', (req, res) => {
-  // Todo: make this a DELETE request
   var session = driver.session()
   session
   .run(`
@@ -185,32 +182,44 @@ app.delete('/user', (req, res) => {
   .finally(() => session.close())
 })
 
-app.post('/delete_user', (req, res) => {
-  // Todo: make this a DELETE request
+
+/*
+This route is insecure as it allows users to set themselves as administrators
+app.put('/user', (req, res) => {
+
+  // Input sanitation
+  if(!('user' in req.body)) return res.status(400).send(`User missing from body`)
+  if(!('identity' in req.body.user)) return res.status(400).send(`User identity missing from user`)
+  if(!('properties' in req.body.user)) return res.status(400).send(`User properties missing from user`)
+
   var session = driver.session()
   session
   .run(`
+    // Find the user
     MATCH (user:User)
+    WHERE id(user) = toInt({user}.identity.low)
 
-    // prevent user moreillon from being deleted
-    WHERE id(user) = toInt({user_id}) AND NOT user.username = 'moreillon'
+    // Set properties
+    SET user = {user}.properties
 
-    // Delete
-    DETACH DELETE user
-    RETURN 'success'
+    // Return the user
+    RETURN user
     `, {
-    user_id: req.body.user_id
+    user: req.body.user
   })
   .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`User deletion failed`)
-    res.send("User deleted successfully")
+    res.send(result.records[0].get('user'))
   })
-  .catch(error => { res.status(500).send(`Error deleting user: ${error}`) })
+  .catch(error => { res.status(500).send(`Error creating user: ${error}`) })
   .finally(() => session.close())
+
 })
+*/
 
 
-app.post('/update_display_name', (req, res) => {
+
+
+app.put('/display_name', (req, res) => {
   // Todo: allow admins to change display names
 
   var session = driver.session()
@@ -232,7 +241,7 @@ app.post('/update_display_name', (req, res) => {
   .finally(() => session.close())
 })
 
-app.post('/update_last_name', (req, res) => {
+app.put('/last_name', (req, res) => {
   // Todo: allow admins to change display names
   var session = driver.session()
   session
@@ -253,7 +262,7 @@ app.post('/update_last_name', (req, res) => {
   .finally(() => session.close())
 })
 
-app.post('/update_first_name', (req, res) => {
+app.put('/first_name', (req, res) => {
   // Todo: allow admins to change display names
   var session = driver.session()
   session
@@ -274,7 +283,31 @@ app.post('/update_first_name', (req, res) => {
   .finally(() => session.close())
 })
 
-app.post('/update_password', auth.authenticate, (req, res) => {
+app.put('/email_address', (req, res) => {
+  // Todo: allow admins to change display names
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+    SET user.email_address={email_address}
+    RETURN user
+    `, {
+    user_id: self_only_unless_admin(req, res),
+    email_address: req.body.email_address,
+  })
+  .then(result => {
+    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
+    res.send(result.records[0].get('user'))
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error changing display name for user: ${error}`)
+  })
+  .finally(() => session.close())
+})
+
+app.put('/password', auth.authenticate, (req, res) => {
 
   // Input sanitation
   if(!('new_password' in req.body)) return res.status(400).send(`Password missing from body`)
@@ -326,7 +359,7 @@ app.put('/avatar', (req, res) => {
 })
 
 
-app.post('/update_administrator_rights', (req, res) => {
+app.put('/administrator_rights', (req, res) => {
   // Todo: allow admins to change display names
   // Todo: admin only!
   var session = driver.session()
