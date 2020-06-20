@@ -4,25 +4,18 @@ stages:
 
 variables:
   APPLICATION_NAME: user-manager
+  CONTAINER_REGISTRY: moreillon
   DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
   CERTIFICATE_DOMAIN: api.users.maximemoreillon.com
 
 containerization:
   stage: containerization
   script:
-    # If docker registry password provided, attempt login
-    - >
-      if [ -z ${CONTAINER_REGISTRY_PASSWORD} ];
-      then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
-      else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
-      fi
+    - echo ${CONTAINER_REGISTRY}
+    # Docker hub login
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
     # Build and push container
-    - >
-      docker build
-      --build-arg HTTP_PROXY=$HTTP_PROXY
-      --build-arg HTTPS_PROXY=$HTTPS_PROXY
-      -t ${DOCKER_IMAGE}
-      .
+    - docker build -t ${DOCKER_IMAGE} .
     - docker push ${DOCKER_IMAGE}
     - docker image rm ${DOCKER_IMAGE}
 

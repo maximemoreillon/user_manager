@@ -5,6 +5,7 @@ const cors = require('cors')
 const neo4j = require('neo4j-driver')
 const bcrypt = require('bcrypt')
 const dotenv = require('dotenv')
+const pjson = require('./package.json')
 
 const auth = require('@moreillon/authentication_middleware')
 
@@ -19,8 +20,8 @@ const driver = neo4j.driver(
 )
 
 // Port configuration
-var app_port = 80
-if(process.env.APP_PORT) app_port=process.env.APP_PORT
+const APP_PORT = process.env.APP_PORT || 80
+
 
 
 function self_only_unless_admin(req, res){
@@ -74,9 +75,7 @@ app.use(auth.authenticate)
 
 app.get('/', (req, res) => {
   res.send(
-    `User management API, Maxime MOREILLON<br>
-    NEO4J URL: ${process.env.NEO4J_URL}
-    `)
+    `User management API ${pjson.version}, Maxime MOREILLON`)
 })
 
 app.get('/all_users', (req, res) => {
@@ -382,6 +381,6 @@ app.put('/administrator_rights', (req, res) => {
 })
 
 // Start server
-app.listen(app_port, () => {
-  console.log(`User manager listening on *:${app_port}`);
+app.listen(APP_PORT, () => {
+  console.log(`User manager listening on *:${APP_PORT}`);
 });
