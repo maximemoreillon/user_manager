@@ -4,8 +4,7 @@ stages:
 
 variables:
   APPLICATION_NAME: user-manager
-  CONTAINER_REGISTRY: moreillon
-  DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
+  DOCKER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
   CERTIFICATE_DOMAIN: api.users.maximemoreillon.com
 
 containerization:

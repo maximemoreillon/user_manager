@@ -215,96 +215,44 @@ app.put('/user', (req, res) => {
 })
 */
 
-
-
-
-app.put('/display_name', (req, res) => {
+app.put('/user_property', (req, res) => {
   // Todo: allow admins to change display names
+
+  // Input sanitation
+  if(!('key' in req.body)) return res.status(400).send(`Key missing from body`)
+
+  let customizable_properties = [
+    'display_name',
+    'first_name',
+    'family_name',
+    'email_address',
+    'avatar',
+  ]
+
+  if(!customizable_properties.includes(req.body.key)) return res.status(400).send(`Property cannot be changed`)
+
 
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
     WHERE id(user) = toInt({user_id})
-    SET user.display_name={display_name}
+    SET user.${req.body.key}={value}
     RETURN user
     `, {
     user_id: self_only_unless_admin(req, res),
-    display_name: req.body.display_name,
+    value: req.body.value,
   })
   .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
+    if(result.records.length === 0 ) return res.status(400).send(`Setting property failed`)
     res.send(result.records[0].get('user'))
+    console.log(`Updated ${req.body.key} with value ${req.body.value} for user ${result.records[0].get('user').properties.username}`)
   })
-  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
+  .catch(error => { res.status(500).send(`Error updating property: ${error}`) })
   .finally(() => session.close())
 })
 
-app.put('/last_name', (req, res) => {
-  // Todo: allow admins to change display names
-  var session = driver.session()
-  session
-  .run(`
-    MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
-    SET user.last_name={last_name}
-    RETURN user
-    `, {
-    user_id: self_only_unless_admin(req, res),
-    last_name: req.body.last_name,
-  })
-  .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(result.records[0].get('user'))
-  })
-  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
-  .finally(() => session.close())
-})
 
-app.put('/first_name', (req, res) => {
-  // Todo: allow admins to change display names
-  var session = driver.session()
-  session
-  .run(`
-    MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
-    SET user.first_name={first_name}
-    RETURN user
-    `, {
-    user_id: self_only_unless_admin(req, res),
-    first_name: req.body.first_name,
-  })
-  .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(result.records[0].get('user'))
-  })
-  .catch(error => { res.status(500).send(`Error changing display name for user: ${error}`) })
-  .finally(() => session.close())
-})
-
-app.put('/email_address', (req, res) => {
-  // Todo: allow admins to change display names
-  var session = driver.session()
-  session
-  .run(`
-    MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
-    SET user.email_address={email_address}
-    RETURN user
-    `, {
-    user_id: self_only_unless_admin(req, res),
-    email_address: req.body.email_address,
-  })
-  .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`Setting display name failed`)
-    res.send(result.records[0].get('user'))
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error changing display name for user: ${error}`)
-  })
-  .finally(() => session.close())
-})
 
 app.put('/password', auth.authenticate, (req, res) => {
 
@@ -336,27 +284,6 @@ app.put('/password', auth.authenticate, (req, res) => {
       .finally( () => session.close())
   })
 })
-
-app.put('/avatar', (req, res) => {
-  var session = driver.session()
-  session
-  .run(`
-    MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
-    SET user.avatar_src={avatar_src}
-    RETURN user
-    `, {
-    user_id: self_only_unless_admin(req, res),
-    avatar_src: req.body.avatar_src,
-  })
-  .then(result => {
-    if(result.records.length === 0 ) return res.status(400).send(`Setting avatar failed`)
-    res.send(result.records[0].get('user'))
-  })
-  .catch(error => { res.status(500).send(`Error changing avatar for user: ${error}`) })
-  .finally(() => session.close())
-})
-
 
 app.put('/administrator_rights', (req, res) => {
   // Todo: allow admins to change display names
