@@ -273,10 +273,13 @@ exports.create_admin_if_not_exists = () => {
       MERGE (administrator:User {username:"administrator"})
 
       // Check if the administrator account is missing its password
-      // If the administrator account does not have a password, set it
+      // If the administrator account does not have a password (newly created), set it
       WITH administrator
       WHERE NOT EXISTS(administrator.password_hashed)
       SET administrator.password_hashed = {default_admin_password_hashed}
+
+      // Make the administrator an actual administrator
+      SET administrator.isAdmin = true
 
       // Return the account
       RETURN 'OK'
