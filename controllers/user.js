@@ -150,13 +150,14 @@ exports.delete_user = (req, res) => {
   var session = driver.session()
   session
   .run(`
+    // Find the user
     MATCH (user:User)
-
-    // prevent user moreillon from being deleted
-    WHERE id(user) = toInt({user_id}) AND NOT user.username = 'moreillon'
+    WHERE id(user) = toInt({user_id})
 
     // Delete
     DETACH DELETE user
+
+    // Return something
     RETURN 'success'
     `, {
     user_id: user_id
@@ -165,7 +166,10 @@ exports.delete_user = (req, res) => {
     if(result.records.length === 0 ) return res.status(400).send(`User deletion failed`)
     res.send("User deleted successfully")
   })
-  .catch(error => { res.status(500).send(`Error deleting user: ${error}`) })
+  .catch(error => {
+    console.error(error)
+    res.status(500).send(`Error deleting user: ${error}`)
+  })
   .finally(() => session.close())
 }
 
@@ -236,7 +240,7 @@ exports.update_password = (req, res) => {
       // Return user once done
       RETURN user
       `, {
-        user_id: self_only_unless_admin(req, res),
+        user_id: self_only_unless_admin_v2(req, res),
         new_password_hashed: hash
       })
       .then(result => { res.send(result.records) })

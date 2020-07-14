@@ -46,7 +46,7 @@ app.route('/users/:user_id')
   .delete(controller.delete_user)
   .patch(controller.patch_user)
 
-app.route('/:user_id/password')
+app.route('/users/:user_id/password')
   .put(controller.update_password)
 
 // Start server
