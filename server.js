@@ -14,6 +14,8 @@ dotenv.config()
 // Port configuration
 const APP_PORT = process.env.APP_PORT || 80
 
+controller.create_admin_if_not_exists()
+
 // Express configuration
 const app = express()
 app.use(bodyParser.json())
@@ -30,6 +32,7 @@ app.route('/user')
   .delete(controller.delete_user)
 
 app.route('/users')
+  .post(controller.create_user)
   .get(controller.get_all_users)
 
 app.route('/users/:user_id')
@@ -43,4 +46,4 @@ app.route('/:user_id/password')
 // Start server
 app.listen(APP_PORT, () => {
   console.log(`User manager listening on *:${APP_PORT}`);
-});
+})

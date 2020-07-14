@@ -1,6 +1,8 @@
 const driver = require('../neo4j_driver.js')
 const bcrypt = require('bcrypt')
+const dotenv = require('dotenv')
 
+dotenv.config()
 
 function self_only_unless_admin_v2(req, res){
 
@@ -207,10 +209,13 @@ exports.patch_user = (req, res) => {
 exports.update_password = (req, res) => {
 
   // Input sanitation
-  if(!('new_password' in req.body)) return res.status(400).send(`Password missing from body`)
+  let new_password = req.body.new_password
+    || req.body.password
+
+  if(!new_password) return res.status(400).send(`Password missing from body`)
 
   // Hash the provided password
-  bcrypt.hash(req.body.new_password, 10, (err, hash) => {
+  bcrypt.hash(new_password, 10, (err, hash) => {
     if(err) return res.status(500).send(`Error hashing password: ${err}`)
 
     const session = driver.session();
@@ -247,4 +252,42 @@ exports.get_all_users = (req, res) => {
   })
   .catch(error => { res.status(500).send(`Error getting users: ${error}`) })
   .finally(() => session.close())
+}
+
+exports.create_admin_if_not_exists = () => {
+
+  let default_admin_password = process.env.DEFAULT_ADMIN_PASSWORD || 'administrator'
+
+  bcrypt.hash(default_admin_password, 10, (err, hash) => {
+    if(err) return res.status(500).send(`Error hashing password: ${err}`)
+
+    const session = driver.session();
+    session
+    .run(`
+      // Find the administrator account or create it if it does not exist
+      MERGE (administrator:User {username:"administrator"})
+
+      // Check if the administrator account is missing its password
+      // If the administrator account does not have a password, set it
+      WITH administrator
+      WHERE NOT EXISTS(administrator.password_hashed)
+      SET administrator.password_hashed = {default_admin_password_hashed}
+
+      // Return the account
+      RETURN 'OK'
+      `, {
+        default_admin_password_hashed: hash
+      })
+      .then(result => {
+        if(result.records.length > 0) {
+          console.log(`Administrator account created`)
+        }
+        else {
+          console.log(`Administrator already existed`)
+        }
+
+      })
+      .catch(error => { console.log(error)})
+      .finally( () => session.close())
+  })
 }
