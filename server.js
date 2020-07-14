@@ -23,7 +23,13 @@ app.use(cors())
 app.use(auth.authenticate)
 
 app.get('/', (req, res) => {
-  res.send(`User management API ${pjson.version}, Maxime MOREILLON`)
+  res.send({
+    application_name: 'User manager API',
+    author: 'Maxime MOREILLON',
+    version: pjson.version,
+    neo4j_url: process.env.NEO4J_URL,
+    authentication_api_url: process.env.AUTHENTIATION_API_URL
+  })
 })
 
 app.route('/user')
