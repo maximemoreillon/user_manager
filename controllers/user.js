@@ -74,6 +74,8 @@ exports.get_user = (req, res) => {
     || req.query.id
     || res.locals.user.identity.low
 
+  if(user_id === 'self') user_id = res.locals.user.identity.low
+
 
   var session = driver.session()
   session
@@ -141,6 +143,9 @@ exports.delete_user = (req, res) => {
   let user_id = req.params.user_id
     || req.query.user_id
     || req.query.id
+
+  if(user_id === 'self') user_id = res.locals.user.identity.low
+
 
   var session = driver.session()
   session
