@@ -280,7 +280,7 @@ exports.create_admin_if_not_exists = () => {
       WITH administrator
       WHERE NOT EXISTS(administrator.password_hashed)
       SET administrator.password_hashed = {default_admin_password_hashed}
-      SET administrator.display_name = Administrator
+      SET administrator.display_name = 'Administrator'
 
       // Return the account
       RETURN 'OK'
