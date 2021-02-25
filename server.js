@@ -28,7 +28,7 @@ app.get('/', (req, res) => {
     author: 'Maxime MOREILLON',
     version: pjson.version,
     neo4j_url: process.env.NEO4J_URL,
-    authentication_api_url: process.env.AUTHENTIATION_API_URL
+    authentication_api_url: process.env.AUTHENTICATION_API_URL
   })
 })
 

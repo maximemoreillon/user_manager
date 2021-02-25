@@ -4,87 +4,57 @@ const dotenv = require('dotenv')
 
 dotenv.config()
 
-function self_only_unless_admin_v2(req, res){
+function self_only_unless_admin(req, res){
 
   // Todo: error message if user is not admin and tries to edit another user
 
-  let current_user_is_admin = !!res.locals.user.properties.isAdmin
+  const current_user_is_admin = !!res.locals.user.properties.isAdmin
 
   if(current_user_is_admin) {
     return req.body.user_id
-      || req.query.user_id
-      || req.params.user_id
-      || res.locals.user.identity.low
+      ?? req.query.user_id
+      ?? req.params.user_id
+      ?? res.locals.user.identity.low
+      ?? res.locals.user.identity
   }
   else {
     return res.locals.user.identity.low
+      ?? res.locals.user.identity
   }
 
 }
 
-function self_only_unless_admin(req, res){
-
-  let current_user_id = res.locals.user.identity.low
-  let current_user_is_admin = !!res.locals.user.properties.isAdmin
-
-  let user_id = undefined
-
-  // check if user_id provided in the request
-  if(('user_id' in req.body)) user_id = req.body.user_id
-  else if(('user_id' in req.query)) user_id = req.query.user_id
-
-  if(user_id) {
-    if(user_id !== current_user_id) {
-      if(current_user_is_admin) return user_id
-      else throw 'Unauthorized to modify another user'
-    }
-    // If user_id is that of self, the allow
-    else return user_id
-  }
-  // If user_id was not specified, just return the current user id
-  else return current_user_id
-
+function get_current_user_id(res){
+  return res.locals.user.identity.low
+    ?? res.locals.user.identity
 }
 
-function admin_only_and_not_oneself(req, res){
+function get_user_id_from_query_or_own(req, res){
+  let user_id = req.params.user_id
+    ?? req.query.user_id
+    ?? req.query.id
+    ?? res.locals.user.identity.low
+    ?? res.locals.user.identity
 
-  let current_user_id = res.locals.user.identity.low
+  if(user_id === 'self') user_id = get_current_user_id(res)
 
-  if(!res.locals.user.properties.isAdmin) throw 'Only administrators can perform this operation'
-
-  let user_id = undefined
-
-  // check if user_id provided in the request
-  if(('user_id' in req.body)) user_id = req.body.user_id
-  else if(('user_id' in req.query)) user_id = req.query.user_id
-
-  if(user_id) {
-    if(user_id !== current_user_id) return user_id
-    else throw 'Cannot perform operation on oneself'
-  }
-  else throw 'User ID not specified'
-
+  return user_id
 }
+
 
 
 exports.get_user = (req, res) => {
 
-  let user_id = req.params.user_id
-    || req.query.user_id
-    || req.query.id
-    || res.locals.user.identity.low
+  const user_id = get_user_id_from_query_or_own(req, res)
 
-  if(user_id === 'self') user_id = res.locals.user.identity.low
-
-
-  var session = driver.session()
+  const session = driver.session()
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    WHERE id(user) = toInteger($user_id)
     RETURN user
     `, {
-    user_id: user_id
+    user_id
   })
   .then(result => {
     res.send(result.records[0].get('user'))
@@ -98,7 +68,14 @@ exports.get_user = (req, res) => {
 
 exports.create_user = (req, res) => {
 
-  // Todo: Check if username is already used
+  // TODO: Prevent registering a user if identifier already exists
+
+  // TODO: Password confirm maybe?
+
+  if(!res.locals.user.properties.isAdmin){
+    return res.status(403).send(`Only administrators can create users`)
+  }
+
 
   // Input sanitation
   if(!('user' in req.body)) return res.status(400).send(`User missing from body`)
@@ -122,7 +99,7 @@ exports.create_user = (req, res) => {
       CREATE (user:User)
 
       // Set properties
-      SET user = {user}.properties
+      SET user = $user.properties
 
       // Return the user
       RETURN user
@@ -140,19 +117,20 @@ exports.create_user = (req, res) => {
 
 exports.delete_user = (req, res) => {
 
-  let user_id = req.params.user_id
-    || req.query.user_id
-    || req.query.id
+  const user_id = req.params.user_id
+    ?? req.query.user_id
+    ?? req.query.id
+    // DO NOT PUT CURRENT USER HERE
 
-  if(user_id === 'self') user_id = res.locals.user.identity.low
+  if(user_id === 'self') user_id = get_current_user_id(res)
 
 
-  var session = driver.session()
+  const session = driver.session()
   session
   .run(`
     // Find the user
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    WHERE id(user) = toInteger($user_id)
 
     // Delete
     DETACH DELETE user
@@ -160,7 +138,7 @@ exports.delete_user = (req, res) => {
     // Return something
     RETURN 'success'
     `, {
-    user_id: user_id
+    user_id
   })
   .then(result => {
     if(result.records.length === 0 ) return res.status(400).send(`User deletion failed`)
@@ -175,6 +153,8 @@ exports.delete_user = (req, res) => {
 
 exports.patch_user = (req, res) => {
 
+  const user_id = self_only_unless_admin(req, res)
+
   let customizable_fields = [
     'avatar_src',
     'last_name',
@@ -184,25 +164,29 @@ exports.patch_user = (req, res) => {
   ]
 
   if(res.locals.user.properties.isAdmin){
-    customizable_fields.push('isAdmin')
+    customizable_fields= customizable_fields.concat([
+      'isAdmin',
+      'locked',
+    ])
   }
 
   for (let [key, value] of Object.entries(req.body)) {
     if(!customizable_fields.includes(key)) {
-      delete req.body[key]
+      console.log(`Unauthorized attempt to modify property ${key}`)
+      return res.status(403).send(`Unauthorized to modify ${key}`)
     }
   }
 
 
-  var session = driver.session()
+  const session = driver.session()
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
-    SET user += {properties} // += implies update of existing properties
+    WHERE id(user) = toInteger($user_id)
+    SET user += $properties // += implies update of existing properties
     RETURN user
     `, {
-    user_id: self_only_unless_admin_v2(req, res),
+    user_id,
     properties: req.body,
   })
   .then(result => {
@@ -218,13 +202,15 @@ exports.patch_user = (req, res) => {
 exports.update_password = (req, res) => {
 
   // Input sanitation
-  let new_password = req.body.new_password
+  const new_password = req.body.new_password
     || req.body.password
 
   if(!new_password) return res.status(400).send(`Password missing from body`)
 
+  const user_id = self_only_unless_admin(req, res)
+
   // Hash the provided password
-  bcrypt.hash(new_password, 10, (err, hash) => {
+  bcrypt.hash(new_password, 10, (err, new_password_hashed) => {
     if(err) return res.status(500).send(`Error hashing password: ${err}`)
 
     const session = driver.session();
@@ -232,16 +218,16 @@ exports.update_password = (req, res) => {
     .run(`
       // Find the user using ID
       MATCH (user:User)
-      WHERE id(user) = toInt({user_id})
+      WHERE id(user) = toInteger($user_id)
 
       // Set the new password
-      SET user.password_hashed={new_password_hashed}
+      SET user.password_hashed = $new_password_hashed
 
       // Return user once done
       RETURN user
       `, {
-        user_id: self_only_unless_admin_v2(req, res),
-        new_password_hashed: hash
+        user_id,
+        new_password_hashed,
       })
       .then(result => { res.send(result.records) })
       .catch(error => res.status(400).send(`Error accessing DB: ${error}`))
@@ -250,11 +236,13 @@ exports.update_password = (req, res) => {
 }
 
 exports.get_all_users = (req, res) => {
+  // Protecting this route might be necessary
   var session = driver.session()
   session
   .run(`
     MATCH (user:User)
     RETURN user
+    LIMIT 100
     `, {})
   .then(result => {
     res.send(result.records)
@@ -265,14 +253,17 @@ exports.get_all_users = (req, res) => {
 
 exports.create_admin_if_not_exists = () => {
 
-  let default_admin_password = process.env.DEFAULT_ADMIN_PASSWORD || 'administrator'
+  const default_admin_password = process.env.DEFAULT_ADMIN_PASSWORD || 'administrator'
 
   bcrypt.hash(default_admin_password, 10, (err, hash) => {
-    if(err) return res.status(500).send(`Error hashing password: ${err}`)
+    if(err) console.log(`Error hashing password: ${err}`)
 
     const session = driver.session();
     session
     .run(`
+      // Create a dummy node so that the administrator account does not get ID 0
+      MERGE (dummy:DummyNode)
+
       // Find the administrator account or create it if it does not exist
       MERGE (administrator:User {username:"administrator"})
 
@@ -283,7 +274,7 @@ exports.create_admin_if_not_exists = () => {
       // If the administrator account does not have a password (newly created), set it
       WITH administrator
       WHERE NOT EXISTS(administrator.password_hashed)
-      SET administrator.password_hashed = {default_admin_password_hashed}
+      SET administrator.password_hashed = $default_admin_password_hashed
       SET administrator.display_name = 'Administrator'
 
       // Return the account
